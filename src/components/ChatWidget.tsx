@@ -732,7 +732,7 @@ function getRefundStatus(orderId: string): { active: boolean; message: string } 
 // Get exchange status
 function getExchangeStatus(orderId: string): { active: boolean; message: string } {
   // Mock status logic
-  const orderNum = parseInt(orderId.replace(/\D/g, '));
+  const orderNum = parseInt(orderId.replace(/\D/g, ''));
   
   if (orderNum % 4 === 0) {
     return {
