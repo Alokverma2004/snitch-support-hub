@@ -504,7 +504,7 @@ const ChatWidget = () => {
               </Button>
             </div>
           </div>
-          <ScrollArea className="p-4 bg-gray-50 flex-grow max-h-[350px]">
+          <ScrollArea className="p-4 bg-gray-50 flex-grow h-[350px] max-h-[350px] overflow-y-auto">
             <div className="space-y-4">
               {messages.map((message) => (
                 <div 
@@ -732,7 +732,7 @@ function getRefundStatus(orderId: string): { active: boolean; message: string } 
 // Get exchange status
 function getExchangeStatus(orderId: string): { active: boolean; message: string } {
   // Mock status logic
-  const orderNum = parseInt(orderId.replace(/\D/g, ''));
+  const orderNum = parseInt(orderId.replace(/\D/g, '));
   
   if (orderNum % 4 === 0) {
     return {
