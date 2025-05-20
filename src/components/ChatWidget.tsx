@@ -1,12 +1,12 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, X, Send } from 'lucide-react';
+import { MessageSquare, X, Send, RefreshCcw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 // Define message type
 type Message = {
@@ -21,6 +21,13 @@ type QuickAction = {
   id: string;
   icon: string;
   label: string;
+  action: string;
+};
+
+// Smart suggestion type
+type SmartSuggestion = {
+  id: string;
+  text: string;
   action: string;
 };
 
@@ -44,6 +51,56 @@ type ConversationState = {
   };
 };
 
+// Generate smart suggestions based on conversation state
+const generateSmartSuggestions = (state: ConversationState): SmartSuggestion[] => {
+  const baseId = Date.now().toString();
+  
+  switch (state.flow) {
+    case 'initial':
+      return [
+        { id: `${baseId}-1`, text: 'Track my order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Ask about refund policy', action: 'refund-policy' },
+        { id: `${baseId}-3`, text: 'Product information', action: 'product' },
+      ];
+    case 'product':
+      return [
+        { id: `${baseId}-1`, text: 'Check another product', action: 'product' },
+        { id: `${baseId}-2`, text: 'How to return items', action: 'return-info' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+    case 'refund':
+      return [
+        { id: `${baseId}-1`, text: 'Track another order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Check refund status', action: 'status' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+    case 'exchange':
+      return [
+        { id: `${baseId}-1`, text: 'Track my order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Check exchange status', action: 'status' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+    case 'track':
+      return [
+        { id: `${baseId}-1`, text: 'Track another order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Request a refund', action: 'refund' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+    case 'status':
+      return [
+        { id: `${baseId}-1`, text: 'Track my order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Contact support', action: 'human' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+    default:
+      return [
+        { id: `${baseId}-1`, text: 'Track my order', action: 'track' },
+        { id: `${baseId}-2`, text: 'Talk to a human', action: 'human' },
+        { id: `${baseId}-3`, text: 'Start over', action: 'reset' },
+      ];
+  }
+};
+
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,6 +111,8 @@ const ChatWidget = () => {
     step: 0,
     data: {},
   });
+  const [smartSuggestions, setSmartSuggestions] = useState<SmartSuggestion[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -65,16 +124,25 @@ const ChatWidget = () => {
   // Initial greeting message when chat is opened
   useEffect(() => {
     if (isOpen && messages.length === 0) {
+      const now = new Date();
+      setLastUpdated(now);
       setMessages([
         {
-          id: Date.now().toString(),
+          id: now.toString(),
           content: "Hi, I'm your SNITCH Assistant 👋. How can I help you today?",
           sender: 'assistant',
-          timestamp: new Date(),
+          timestamp: now,
         },
       ]);
     }
   }, [isOpen, messages.length]);
+
+  // Update smart suggestions when conversation state changes
+  useEffect(() => {
+    if (messages.length > 0) {
+      setSmartSuggestions(generateSmartSuggestions(conversationState));
+    }
+  }, [conversationState, messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,13 +161,39 @@ const ChatWidget = () => {
   };
 
   const addMessage = (content: string, sender: 'user' | 'assistant') => {
+    const now = new Date();
     const newMessage: Message = {
       id: generateId(),
       content,
       sender,
-      timestamp: new Date(),
+      timestamp: now,
     };
     setMessages((prev) => [...prev, newMessage]);
+    setLastUpdated(now);
+  };
+
+  const resetChat = () => {
+    setMessages([]);
+    setConversationState({
+      flow: 'initial',
+      step: 0,
+      data: {},
+    });
+    setSmartSuggestions([]);
+    const now = new Date();
+    setLastUpdated(now);
+    setMessages([
+      {
+        id: now.toString(),
+        content: "Hi, I'm your SNITCH Assistant 👋. How can I help you today?",
+        sender: 'assistant',
+        timestamp: now,
+      },
+    ]);
+    toast({
+      title: "Chat Reset",
+      description: "Your conversation has been reset.",
+    });
   };
 
   const handleQuickAction = (action: string) => {
@@ -159,6 +253,34 @@ const ChatWidget = () => {
           addMessage('I can help you check the status. Please provide your order ID.', 'assistant');
         }, 500);
         break;
+      case 'refund-policy':
+        addMessage('What is your refund policy?', 'user');
+        setTimeout(() => {
+          addMessage('Our refund policy allows returns within 30 days of purchase for unused items with original packaging. Once approved, refunds are processed within 5-7 business days to your original payment method.', 'assistant');
+          setConversationState({
+            flow: 'general',
+            step: 0,
+            data: {},
+          });
+        }, 500);
+        break;
+      case 'return-info':
+        addMessage('How do I return items?', 'user');
+        setTimeout(() => {
+          addMessage('To return an item, log into your SNITCH account, find your order, and click "Return Item". Follow the prompts to generate a return label. Package the item in its original packaging with all tags attached, and ship using the provided label within 14 days.', 'assistant');
+          setConversationState({
+            flow: 'general',
+            step: 0,
+            data: {},
+          });
+        }, 500);
+        break;
+      case 'reset':
+        resetChat();
+        break;
+      case 'human':
+        escalateToHuman();
+        break;
       default:
         break;
     }
@@ -180,6 +302,10 @@ const ChatWidget = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSmartSuggestion = (suggestion: SmartSuggestion) => {
+    handleQuickAction(suggestion.action);
   };
 
   const escalateToHuman = () => {
@@ -349,15 +475,34 @@ const ChatWidget = () => {
       {isOpen ? (
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 w-80 sm:w-96 overflow-hidden flex flex-col max-h-[500px] animate-in slide-in-from-bottom-5">
           <div className="bg-navy text-white p-4 flex justify-between items-center">
-            <h3 className="font-medium">Chat with SNITCH AI Assistant</h3>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-white hover:bg-white/20"
-              onClick={toggleChat}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            <div>
+              <h3 className="font-medium">Chat with SNITCH AI Assistant</h3>
+              {lastUpdated && (
+                <p className="text-xs text-white/80">
+                  Last updated: {format(lastUpdated, 'MMM d, p')}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-white hover:bg-white/20"
+                onClick={resetChat}
+                title="Reset Chat"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-white hover:bg-white/20"
+                onClick={toggleChat}
+                title="Close Chat"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <ScrollArea className="p-4 bg-gray-50 flex-grow max-h-[350px]">
             <div className="space-y-4">
@@ -365,7 +510,7 @@ const ChatWidget = () => {
                 <div 
                   key={message.id} 
                   className={cn(
-                    "px-4 py-2 rounded-lg max-w-[80%]",
+                    "px-4 py-2 rounded-lg max-w-[80%] animate-fade-in",
                     message.sender === 'user' 
                       ? "bg-burgundy text-white ml-auto" 
                       : "bg-gray-200 text-gray-800"
@@ -375,7 +520,7 @@ const ChatWidget = () => {
                 </div>
               ))}
               {isLoading && (
-                <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg max-w-[80%]">
+                <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg max-w-[80%] animate-fade-in">
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -393,10 +538,25 @@ const ChatWidget = () => {
                   <button
                     key={action.id}
                     onClick={() => handleQuickAction(action.action)}
-                    className="w-full text-left px-3 py-2 bg-white hover:bg-gray-100 rounded-md border border-gray-200 flex items-center space-x-2 transition-colors"
+                    className="w-full text-left px-3 py-2 bg-white hover:bg-gray-100 rounded-md border border-gray-200 flex items-center space-x-2 transition-colors animate-fade-in"
                   >
                     <span>{action.icon}</span>
                     <span>{action.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Smart suggestions after messages */}
+            {messages.length > 1 && smartSuggestions.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 animate-fade-in">
+                {smartSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    onClick={() => handleSmartSuggestion(suggestion)}
+                    className="px-3 py-1.5 bg-white hover:bg-gray-100 rounded-full border border-gray-200 text-sm transition-colors text-burgundy"
+                  >
+                    {suggestion.text}
                   </button>
                 ))}
               </div>
@@ -409,7 +569,7 @@ const ChatWidget = () => {
                   variant="outline" 
                   size="sm"
                   onClick={escalateToHuman}
-                  className="text-burgundy border-burgundy hover:bg-burgundy/10"
+                  className="text-burgundy border-burgundy hover:bg-burgundy/10 animate-fade-in"
                 >
                   Talk to a human agent
                 </Button>
@@ -572,7 +732,7 @@ function getRefundStatus(orderId: string): { active: boolean; message: string } 
 // Get exchange status
 function getExchangeStatus(orderId: string): { active: boolean; message: string } {
   // Mock status logic
-  const orderNum = parseInt(orderId.replace(/\D/g, ''));
+  const orderNum = parseInt(orderId.replace(/\D/g, '));
   
   if (orderNum % 4 === 0) {
     return {
