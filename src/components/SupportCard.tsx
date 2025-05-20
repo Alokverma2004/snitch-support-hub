@@ -8,14 +8,18 @@ type SupportCardProps = {
   description: string;
   icon: React.ReactNode;
   className?: string;
+  onClick?: () => void;
 };
 
-const SupportCard = ({ title, description, icon, className }: SupportCardProps) => {
+const SupportCard = ({ title, description, icon, className, onClick }: SupportCardProps) => {
   return (
-    <Card className={cn(
-      "transition-all duration-300 hover:shadow-lg border border-gray-100 h-full",
-      className
-    )}>
+    <Card 
+      className={cn(
+        "transition-all duration-300 hover:shadow-lg border border-gray-100 h-full cursor-pointer",
+        className
+      )}
+      onClick={onClick}
+    >
       <CardContent className="p-6 flex flex-col items-center text-center">
         <div className="mb-4 p-3 bg-muted rounded-full">
           {icon}
