@@ -709,7 +709,7 @@ function initiateExchange(orderId: string, reason: string): { success: boolean; 
 // Get refund status
 function getRefundStatus(orderId: string): { active: boolean; message: string } {
   // Mock status logic
-  const orderNum = parseInt(orderId.replace(/\D/g, ''));
+  const orderNum = parseInt(orderId.replace(/\D/g, '));
   
   if (orderNum % 3 === 0) {
     return {
@@ -763,7 +763,7 @@ function getOrderTracking(identifier: string): { found: boolean; message: string
   const isOrderId = identifier.match(/^SNT-\d{6}$/i);
   
   if (isOrderId) {
-    const orderNum = parseInt(identifier.replace(/\D/g, ''));
+    const orderNum = parseInt(identifier.replace(/\D/g, '));
     
     if (orderNum % 5 === 0) {
       return {
